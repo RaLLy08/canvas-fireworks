@@ -300,32 +300,24 @@ const removeDeadParticles = () => {
 //     });
 // };
 
-let prevChargesLen = null;
-
 
 const addCharge = (x, y) => {
     const charge = new Charge(x, y, new Color().random());
     charge.index = charges.length - 1;
     charges.push(charge);
-
-    prevChargesLen = charges.length;
 }
 
 canvasEl.addEventListener("mousedown", (e) => {
     const { offsetX, offsetY } = e;
 
-    if (prevChargesLen !== charges.length) {
-        addCharge(offsetX, offsetY);
-    };
+    addCharge(offsetX, offsetY);
 });
 
 
 canvasEl.addEventListener("touchstart", (e) => {
     const { clientX, clientY } = e.touches[0];
 
-    if (prevChargesLen !== charges.length) {
-        addCharge(clientX, clientY);
-    };
+    addCharge(offsetX, offsetY);
 });
 
 const frame = () => {
