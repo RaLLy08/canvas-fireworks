@@ -80,6 +80,16 @@ class Color {
     toString() {
         return `rgba(${this.r}, ${this.g}, ${this.b}, ${this.a})`;
     }
+    copy() {
+        const newColor = new Color();
+        
+        newColor.r = this.r;
+        newColor.g = this.g;
+        newColor.b = this.b;
+        newColor.a = this.a;
+        
+        return newColor;
+    }
 }
 
 class ParticleTrace {
@@ -150,19 +160,21 @@ class Particle extends ParticleTrace {
 
 
 const explosion = (charge) => {
-    const {x, y} = charge.position;
+    const { x, y } = charge.position;
     const color = charge.color;
     const count = 100 + 200 * Math.random();
     const angleStep = 360 / count;
-    const maxLifeFrames = 40 + Math.floor(80 * Math.random());
+    const maxLifeFrames = 80 + Math.floor(80 * Math.random());
     // const color = new Color().random();
     const removeAfterFrames = 0;
-    const minTraceLength = 5;
+    const minTraceLength = 10;
     const maxTraceLength = 20
+
+    const randomEffectChance = Math.random();
 
     for (let i = 0; i < count; i++) {
         const angle = Vector.toRadians(angleStep * i);
-        const particle = new Particle(x, y, color);
+        const particle = new Particle(x, y, color.copy());
 
         particle.lifeFrames = maxLifeFrames;
         particle.maxLifeFrames = maxLifeFrames;
@@ -171,16 +183,42 @@ const explosion = (charge) => {
         const randVScale = 2 * Math.random();
         const randARotate = Math.random() * Math.PI / 2;
 
+
+        
+        particle.traceLength = minTraceLength + Math.floor(maxTraceLength * Math.random());
+
         particle.v = new Vector(
             Math.cos(angle), Math.sin(angle)
         ).scaleBy(randVScale);
 
-        particle.traceLength = minTraceLength + Math.floor(maxTraceLength * Math.random());
-        
         // random trajectory for particles 
         particle.a = new Vector(
             Math.cos(angle), Math.sin(angle)
         ).scaleBy(0.01).rotate(randARotate);
+
+        // heart shape generating
+        if (randomEffectChance > 0.7) { 
+            particle.color.r = 155 + Math.floor(Math.random() * 100);
+            particle.color.g = Math.floor(Math.random() * 50);
+            particle.color.b = Math.floor(Math.random() * 50);
+            
+            particle.v = new Vector(
+                Math.cos(angle), Math.sin(angle)
+            ).scaleBy(2);
+    
+            if (particle.v.y > 0) {
+                particle.v.y = Math.sqrt(1 - (Math.abs(particle.v.x) - 1) ** 2);    
+            } else {
+                particle.v.y = Math.acos(1 - Math.abs(particle.v.x)) - Math.PI;
+            }
+
+            particle.v = particle.v.scaleBy(-1);
+        }
+
+        if (randomEffectChance > 0.9) {
+            particle.color = new Color().random()
+        }        
+
 
         particles.push(particle);
     }
