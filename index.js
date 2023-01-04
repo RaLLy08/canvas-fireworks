@@ -1,7 +1,7 @@
 class Canvas {
     static WIDTH = 1200;
     static HEIGHT = 900;
-    static BACKGROUND_COLOR = "#37425B";
+    static BACKGROUND_COLOR = "#051937";
 
     constructor(canvas) {
         this.canvas = canvas;
