@@ -196,7 +196,7 @@ class Charge extends ParticleTrace {
         this.a = new Vector(0, 0);
         this.index = 0;
 
-        this.traceLength = 4;
+        this.traceLength = 3;
         this.maxHeight = (Canvas.HEIGHT / 2) - (Canvas.HEIGHT / 3) * Math.random();
         this.traces = [];
     }
@@ -221,7 +221,7 @@ class Charge extends ParticleTrace {
         this.position = this.position.add(this.v);
 
         // sine wave effect
-        const sine = Math.sin(this.position.y);
+        const sine = Math.sin(this.position.y / 40) * 0.3;
         this.position.x += sine;
     }
 
@@ -230,7 +230,6 @@ class Charge extends ParticleTrace {
         color.r = this.color.r;
         color.g = this.color.g;
         color.b = this.color.b;
-        color.a = this.traceLength / this.traces.length * 0.8;
 
         this.traces.push(
             new ParticleTrace(this.position.x, this.position.y, color)
@@ -298,18 +297,20 @@ const frame = () => {
 
         particle.update();
     }
+    const chargeR = 4;
 
     for (let c = 0; c < charges.length; c++) {
         const charge = charges[c];
         applyGravity(charge);
 
-        canvas.drawPoint(charge, 4);
-
+        canvas.drawPoint(charge, chargeR);
 
         for (let t = 0; t < charge.traces.length; t++) {
             const traceCurr = charge.traces[t];
 
-            canvas.drawPoint(traceCurr);
+            canvas.drawPoint(traceCurr, (
+                (t + 1) / charge.traces.length
+            ) * chargeR);
         }
 
         charge.update();
