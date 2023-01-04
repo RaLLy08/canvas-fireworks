@@ -299,15 +299,23 @@ const removeDeadParticles = () => {
 //     });
 // };
 
-
-
-canvasEl.addEventListener("mousedown", (e) => {
-    const { offsetX: x, offsetY: y } = e;
-    
+const addCharge = (x, y) => {
     const charge = new Charge(x, y, new Color().random());
     charge.index = charges.length - 1;
     charges.push(charge);
-    // explosion(x, y);
+}
+
+canvasEl.addEventListener("mousedown", (e) => {
+    const { offsetX, offsetY } = e;
+    
+    addCharge(offsetX, offsetY);
+});
+
+
+canvasEl.addEventListener("touchstart", (e) => {
+    const { clientX, clientY } = e.touches[0];
+
+    addCharge(clientX, clientY);
 });
 
 const frame = () => {
