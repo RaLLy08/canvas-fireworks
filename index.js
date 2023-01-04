@@ -148,10 +148,11 @@ class Particle extends ParticleTrace {
 
     removeRandomTrace() {
         if (this.lifeFrames > this.removeAfterFrames) return;
-        
-        if (this.lifeFrames % 4 !== 0) {
+    
+        if (particles.length < 200 && this.lifeFrames % 4 !== 0) {
             return 
         };
+
         const randPos = Math.floor(Math.random() * this.traces.length);
 
         this.traces.splice(randPos, 1); 
@@ -299,23 +300,32 @@ const removeDeadParticles = () => {
 //     });
 // };
 
+let prevChargesLen = null;
+
+
 const addCharge = (x, y) => {
     const charge = new Charge(x, y, new Color().random());
     charge.index = charges.length - 1;
     charges.push(charge);
+
+    prevChargesLen = charges.length;
 }
 
 canvasEl.addEventListener("mousedown", (e) => {
     const { offsetX, offsetY } = e;
-    
-    addCharge(offsetX, offsetY);
+
+    if (prevChargesLen !== charges.length) {
+        addCharge(offsetX, offsetY);
+    };
 });
 
 
 canvasEl.addEventListener("touchstart", (e) => {
     const { clientX, clientY } = e.touches[0];
 
-    addCharge(clientX, clientY);
+    if (prevChargesLen !== charges.length) {
+        addCharge(clientX, clientY);
+    };
 });
 
 const frame = () => {
