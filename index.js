@@ -28,7 +28,7 @@ class Canvas {
         this.ctx.closePath();
     }
     /**
-     * @param {Particle | ParticleTrace} particle
+     * @param {Particle | ParticleTrace} trace
      **/
     drawPoint(trace, r = 4) {
         const { x, y } = trace.position;
@@ -69,6 +69,7 @@ class Color {
         this.g = Math.floor(Math.random() * 255);
         this.b = Math.floor(Math.random() * 255);
         this.a = 1;
+
         return this;
     }
     constructor(r=255, g=255, b=255) {
@@ -106,99 +107,156 @@ class Particle extends ParticleTrace {
         this.v = new Vector(0, 0);
         this.a = new Vector(0, 0);
         this.lifeFrames = 0;
-        this.removeAfterFrames = 0;
+        this.explosive = false;
+        // this.removeAfterFrames = 0;
+
         this.maxLifeFrames = 0;
 
         this.traceLength = 10;
-        this.traces = [];
+        this.traces = [new ParticleTrace(this.position.x, this.position.y, this.color)];
+        this.lineWidth = 2;
 
-        this.addTrace();
+        // skips adding traces # increasing fpc
+        this.passTrace = 1;
+        // this.addTrace();
     }
+
+    get isDied() { return this.lifeFrames > this.maxLifeFrames };
+    get isTooLong() { return this.traces.length * this.passTrace > this.traceLength };
+    get enableAdding() { return this.lifeFrames % this.passTrace === 0 };
+
     update() {
-        this.lifeFrames--;
-
-        if (this.lifeFrames < 0) {
-            return;
-        }
-
-        if (this.traces.length > this.traceLength) {
+        if (
+            this.isDied || 
+            this.isTooLong
+        ) {
             this.traces.shift();
         } else {
-            this.addTrace();
+            if (this.enableAdding) {
+                this.addTrace();
+            }
         }
-
-
+        
         // particles.push(this.position);
 
         this.v = this.v.add(this.a);
         this.position = this.position.add(this.v);
+
+        this.lifeFrames += 1;
     }
 
     addTrace() {
-        const color = new Color();
-        color.r = this.color.r;
-        color.g = this.color.g;
-        color.b = this.color.b;
-        color.a = this.lifeFrames / this.maxLifeFrames * 5;
+        const color = this.color.copy();
+
+        color.a = this.maxLifeFrames / this.lifeFrames / 2;
 
         this.traces.push(
             new ParticleTrace(this.position.x, this.position.y, color)
         );
     }
 
-    removeRandomTrace() {
-        if (this.lifeFrames > this.removeAfterFrames) return;
+    removeDiedTrace() {
+        if (!this.isDied) return;
     
-        if (particles.length < 200 && this.lifeFrames % 4 !== 0) {
+        if (particles.lenght < 1000 && this.lifeFrames % 4 !== 0) {
             return 
         };
 
-        const randPos = Math.floor(Math.random() * this.traces.length);
-
-        this.traces.splice(randPos, 1); 
+        this.traces.shift(); 
     }
 }
 
 
-const explosion = (charge) => {
-    const { x, y } = charge.position;
-    const color = charge.color;
-    const count = 100 + 200 * Math.random();
-    const angleStep = 360 / count;
-    const maxLifeFrames = 80 + Math.floor(80 * Math.random());
-    // const color = new Color().random();
-    const removeAfterFrames = 0;
-    const minTraceLength = 10;
-    const maxTraceLength = 20
+class Charge {
+    static EFFECTS = [
+        'heart'
+    ]
 
-    const randomEffectChance = Math.random();
+    constructor({
+        position = new Vector(0, 0),
+        velocity = new Vector(
+            (Math.random() * 2) * Math.sign(Math.random() - 0.5),
+            -6
+        ),
+        acceleration = new Vector(0, 0),
+        count = 100 + 200 * Math.random(),
+        color = new Color().random(),
+        particleMaxLifeFrames = 40 + Math.floor(80 * Math.random()),
+        traceLength = 10,
+        explosionY = (Canvas.HEIGHT / 2) - (Canvas.HEIGHT / 3) * Math.random(),
+        particleMinTraceLength = 5,
+        particleMaxTraceLength = 10,
+        index = 0,
+        nestExplosion = false,
+        chargeRadius = 4,
+        particlePassTrace = 1,
+        effect = null,
+    }) {
+        this.color = color;
+        this.position = position;
 
-    for (let i = 0; i < count; i++) {
-        const angle = Vector.toRadians(angleStep * i);
-        const particle = new Particle(x, y, color.copy());
+        this.count = count;
+        this.particleMaxLifeFrames = particleMaxLifeFrames;
+        this.particleMinTraceLength = particleMinTraceLength;
+        this.particleMaxTraceLength = particleMaxTraceLength
+    
+        this.v = velocity;
+        this.a = acceleration;
+        this.index = index;
 
-        particle.lifeFrames = maxLifeFrames;
-        particle.maxLifeFrames = maxLifeFrames;
-        particle.removeAfterFrames = removeAfterFrames;
+        this.traceLength = traceLength;
+        this.explosionY = explosionY;
+        this.nestExplosion = nestExplosion;
+        this.chargeRadius = chargeRadius;
+        this.particlePassTrace = particlePassTrace;
+        this.effect = effect;
 
-        const randVScale = 2 * Math.random();
-        const randARotate = Math.random() * Math.PI / 2;
+        this.traces = [];
+    }
 
-
+    explosion = () => {
+        const { x, y } = this.position;
+        const randomEffectChance = Math.random();
         
-        particle.traceLength = minTraceLength + Math.floor(maxTraceLength * Math.random());
+        const angleStep = 360 / this.count;
+    
+        for (let i = 0; i < this.count; i++) {
+            const angle = Vector.toRadians(angleStep * i);
+            const particle = new Particle(x, y, this.color.copy());
 
-        particle.v = new Vector(
-            Math.cos(angle), Math.sin(angle)
-        ).scaleBy(randVScale);
+            particle.maxLifeFrames = this.particleMaxLifeFrames;
+            particle.explosive = this.nestExplosion;
+            particle.passTrace = this.particlePassTrace;
+    
+            const randVScale = 2 * Math.random();
+            const randARotate = Math.random() * Math.PI / 2;
+    
+            particle.traceLength = this.particleMinTraceLength + Math.floor(this.particleMaxTraceLength * Math.random());
+    
+            particle.v = new Vector(
+                Math.cos(angle), Math.sin(angle)
+            ).scaleBy(randVScale);
+    
+            // random trajectory for particles 
+            particle.a = new Vector(
+                Math.cos(angle), Math.sin(angle)
+            ).scaleBy(0.01).rotate(randARotate);
 
-        // random trajectory for particles 
-        particle.a = new Vector(
-            Math.cos(angle), Math.sin(angle)
-        ).scaleBy(0.01).rotate(randARotate);
+            // heart shape generating
+            this.applyEffect(particle, angle);
+    
+            if (randomEffectChance > 0.9) {
+                particle.color = new Color().random()
+            }        
+    
+    
+            particles.push(particle);
+        }
+        
+    };
 
-        // heart shape generating
-        if (randomEffectChance > 0.7) { 
+    applyEffect(particle, angle) {
+        if (this.effect === Charge.EFFECTS[0]) {
             particle.color.r = 155 + Math.floor(Math.random() * 100);
             particle.color.g = Math.floor(Math.random() * 50);
             particle.color.b = Math.floor(Math.random() * 50);
@@ -212,32 +270,9 @@ const explosion = (charge) => {
             } else {
                 particle.v.y = Math.acos(1 - Math.abs(particle.v.x)) - Math.PI;
             }
-
+    
             particle.v = particle.v.scaleBy(-1);
         }
-
-        if (randomEffectChance > 0.9) {
-            particle.color = new Color().random()
-        }        
-
-
-        particles.push(particle);
-    }
-};
-
-class Charge extends ParticleTrace {
-    constructor(x, y, color) {
-        super(x, y, color);
-
-        this.v = new Vector(
-            (Math.random() * 2) * Math.sign(Math.random() - 0.5),
-             -6);
-        this.a = new Vector(0, 0);
-        this.index = 0;
-
-        this.traceLength = 3;
-        this.maxHeight = (Canvas.HEIGHT / 2) - (Canvas.HEIGHT / 3) * Math.random();
-        this.traces = [];
     }
 
     update() {
@@ -247,34 +282,53 @@ class Charge extends ParticleTrace {
             this.addTrace();
         }
 
-        if (this.position.y < this.maxHeight) {
-            explosion(this);
-            const indexRemove = charges.findIndex(el => el.index === this.index)
+        if (this.position.y < this.explosionY) {
+            this.explosion();
+
+            const indexRemove = charges.findIndex(el => el.index === this.index);
+
             charges.splice(indexRemove, 1);
 
             return;
         }
 
         this.v = this.v.add(this.a);
-
+        
         this.position = this.position.add(this.v);
 
         // sine wave effect
-        const sine = Math.sin(this.position.y / 40) * 0.3;
-        this.position.x += sine;
+        // const sine = Math.sin(this.position.y / 40) * 0.3;
+        // this.position.x += sine;
     }
 
     addTrace() {
-        const color = new Color();
-        color.r = this.color.r;
-        color.g = this.color.g;
-        color.b = this.color.b;
+        const color = this.color.copy();
 
         this.traces.push(
             new ParticleTrace(this.position.x, this.position.y, color)
         );
     }
 }
+
+// class Charges {
+//     constructor() {
+//         this.charges = [];
+//         this.index = 0;
+//     }
+
+//     add(x, y) {
+//         const charge = new Charge(x, y, new Color().random());
+//         charge.index = this.index;
+//         this.index++;
+//         this.charges.push(charge);
+//     }
+
+//     update() {
+//         this.charges.forEach((charge) => {
+//             charge.update();
+//         });
+//     }
+// }
 
 let particles = [];
 let charges = [];
@@ -288,7 +342,25 @@ const removeDeadParticles = () => {
     const removeType = "random";
     const removeByCount = 2;
     particles = particles.filter((particle) => {
-        particle.removeRandomTrace(); 
+        particle.removeDiedTrace(); 
+
+        if (particle.traces.length === 0 && particle.explosive) {
+            const charge = new Charge({
+                position: particle.position,
+                index: charges.length - 1,
+                count: 30,
+                particleMaxLifeFrames: 20 + Math.floor(20 * Math.random()),
+                traceLength: 0,
+                explosionY: Infinity,
+                particleMinTraceLength: 1,
+                particleMaxTraceLength: 3,
+                particlePassTrace: 3,
+                color: particle.color,
+                index: 0,
+            });
+        
+            charges.push(charge);
+        }
 
         return particle.traces.length;
     });
@@ -296,14 +368,33 @@ const removeDeadParticles = () => {
 
 // const removeDeadCharges = () => {
 //     charges = charges.filter((charge) => {
-//         return charge.position.y > charge.maxHeight;
+//         return charge.position.y > charge.explosionY;
 //     });
 // };
 
 
 const addCharge = (x, y) => {
-    const charge = new Charge(x, y, new Color().random());
-    charge.index = charges.length - 1;
+    const isNestedCharge = Math.random() > 0.7;
+    const isHarthEffect = Math.random() > 0.7;
+
+    const charge = new Charge({
+        position: new Vector(x, y),
+        particleMinTraceLength: 4,
+        particleMaxTraceLength: 14,
+        index: charges.length - 1,
+        particlePassTrace: 3,  
+    });
+
+    if (isNestedCharge) {
+        charge.nestExplosion = true;
+        charge.chargeRadius = 8;
+    }
+
+    if (isHarthEffect) {
+        charge.effect = Charge.EFFECTS[0];
+    }
+
+
     charges.push(charge);
 }
 
@@ -317,7 +408,7 @@ canvasEl.addEventListener("mousedown", (e) => {
 canvasEl.addEventListener("touchstart", (e) => {
     const { clientX, clientY } = e.touches[0];
 
-    addCharge(offsetX, offsetY);
+    addCharge(clientX, clientY);
 });
 
 const frame = () => {
@@ -334,31 +425,38 @@ const frame = () => {
             const traceCurr = particle.traces[t];
             const traceNext = particle.traces[t + 1];
 
-            if (traceNext && particle.lifeFrames > particle.removeAfterFrames) {
-                canvas.drawLine(traceCurr, traceNext, 2);
+            if (particle.lifeFrames < particle.maxLifeFrames) {
+                if (traceNext) {
+                    canvas.drawLine(traceCurr, traceNext, particle.lineWidth);
+                } else {
+                    // first trace to head
+                    canvas.drawLine(particle, traceCurr, particle.lineWidth);
+                }
 
                 continue;
             }
-
+            // trace after die
             canvas.drawPoint(traceCurr, 1.1);
         }
 
+        // head Point
+        canvas.drawPoint(particle, 1.1);
+
         particle.update();
     }
-    const chargeR = 4;
 
     for (let c = 0; c < charges.length; c++) {
         const charge = charges[c];
         applyGravity(charge);
 
-        canvas.drawPoint(charge, chargeR);
+        canvas.drawPoint(charge, charge.chargeRadius);
 
         for (let t = 0; t < charge.traces.length; t++) {
             const traceCurr = charge.traces[t];
 
             canvas.drawPoint(traceCurr, (
                 (t + 1) / charge.traces.length
-            ) * chargeR);
+            ) * charge.chargeRadius);
         }
 
         charge.update();
